@@ -68,7 +68,8 @@ export default function useRealTime({
             type: "session.update",
             session: {
                 turn_detection: {
-                    type: "server_vad"
+                    type: "server_vad",
+                    threshold: 0.8
                 }
             }
         };

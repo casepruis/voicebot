@@ -56,7 +56,20 @@ class RTMiddleTier:
     # Server-enforced configuration, if set, these will override the client's configuration
     # Typically at least the model name and system message will be set by the server
     model: Optional[str] = None
-    system_message: Optional[str] = None
+    system_message: Optional[str] = """You are a call center operator that responds to customer inquiries.
+    Keep sentences short and simple, suitable for a voice conversation, so it's *super* important that answers are as short as possible. Use professional language.
+    
+    Your tasks are:
+    - Greet the Customer at first and ask how you can help.
+    - ALWAYS route the proper agent to handle ALL specific requests via function call. NEVER provide answers yourself.
+    - Check if the Customer has any additional questions. If not, close the conversation.
+    - Close the conversation after the Customer's request has been resolved. Thank the Customer for their time and wish them a good day and write TERMINATE to end the conversation. DO write TERMINATE in the response.
+    
+    IMPORTANT NOTES:
+    - Make sure to act politely and professionally.    
+    - Make sure to write TERMINATE to end the conversation.    
+    - NEVER pretend to act on behalf of the company. NEVER provide false information.
+    """
     temperature: Optional[float] = None
     max_tokens: Optional[int] = None
     disable_audio: Optional[bool] = None
@@ -86,7 +99,7 @@ class RTMiddleTier:
                     session = message["session"]
                     # Hide the instructions, tools and max tokens from clients, if we ever allow client-side 
                     # tools, this will need updating
-                    session["instructions"] = ""
+                    session["instructions"] = "you"
                     session["tools"] = []
                     session["voice"] = self.voice_choice
                     session["tool_choice"] = "none"
@@ -105,6 +118,7 @@ class RTMiddleTier:
                         updated_message = None
                     elif "item" in message and message["item"]["type"] == "function_call_output":
                         updated_message = None
+                    
 
                 case "response.function_call_arguments.delta":
                     updated_message = None
@@ -151,7 +165,13 @@ class RTMiddleTier:
                                 message["response"]["output"].pop(i)
                                 replace = True
                         if replace:
-                            updated_message = json.dumps(message)                        
+                            updated_message = json.dumps(message) 
+                #kees edited
+                # //https://platform.openai.com/docs/api-reference/realtime-server-events/conversation/item/created
+                case "conversation.item.input_audio_transcription.completed":
+                    if "transcript" in message:
+                        print("Transcript:", message["transcript"])
+                        updated_message = None                                  
 
         return updated_message
 
@@ -172,6 +192,9 @@ class RTMiddleTier:
                         session["disable_audio"] = self.disable_audio
                     if self.voice_choice is not None:
                         session["voice"] = self.voice_choice
+                    #kees edited
+                    # https://platform.openai.com/docs/api-reference/realtime-client-events/session/update    
+                    session["input_audio_transcription"] = {"model": "whisper-1"}
                     session["tool_choice"] = "auto" if len(self.tools) > 0 else "none"
                     session["tools"] = [tool.schema for tool in self.tools.values()]
                     updated_message = json.dumps(message)
